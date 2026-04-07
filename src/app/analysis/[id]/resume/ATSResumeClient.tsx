@@ -328,27 +328,19 @@ export default function ATSResumeClient({
     URL.revokeObjectURL(url);
   };
 
-  const writeToWindow = (win: Window, data: ResumeData) => {
-    win.document.open();
-    win.document.write(buildPrintHTML(data));
-    win.document.close();
+  const openHTMLAsPDF = (html: string) => {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const handleDownloadPDF = async () => {
     if (parsed) {
-      // Synchronous — no popup blocker issue
-      const win = window.open('', '_blank');
-      if (win) writeToWindow(win, parsed);
+      openHTMLAsPDF(buildPrintHTML(parsed));
       return;
     }
-    // Open the window synchronously BEFORE the async fetch (popup blockers
-    // only allow window.open in the same call stack as a user gesture)
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.open();
-      win.document.write('<html><body style="font-family:sans-serif;padding:40px;color:#333"><p>Generating your resume, please wait…</p></body></html>');
-      win.document.close();
-    }
+    // Resume is plain text — regenerate to get JSON first
     setIsPdfLoading(true);
     setError('');
     try {
@@ -357,10 +349,13 @@ export default function ATSResumeClient({
       if (!res.ok) throw new Error(data.error || 'Failed to generate resume');
       setAtsResume(data.atsResume);
       const freshParsed = parseResume(data.atsResume);
-      if (freshParsed && win) writeToWindow(win, freshParsed);
+      if (freshParsed) {
+        openHTMLAsPDF(buildPrintHTML(freshParsed));
+      } else {
+        setError('Resume regenerated but still not in template format. Try clicking Regenerate first, then Download PDF.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
-      win?.close();
     } finally {
       setIsPdfLoading(false);
     }
