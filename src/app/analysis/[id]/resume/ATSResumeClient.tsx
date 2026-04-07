@@ -270,6 +270,7 @@ export default function ATSResumeClient({
 }: Props) {
   const [atsResume, setAtsResume] = useState<string | null>(initialAtsResume);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const parsed = atsResume ? parseResume(atsResume) : null;
@@ -327,21 +328,36 @@ export default function ATSResumeClient({
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadPDF = () => {
-    const htmlContent = parsed
-      ? buildPrintHTML(parsed)
-      : `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>
-          body{font-family:Georgia,serif;font-size:11pt;line-height:1.4;color:#000;padding:22px 40px;max-width:730px;margin:0 auto;}
-          pre{white-space:pre-wrap;font-family:inherit;}
-          @media print{body{padding:0;}@page{margin:1cm 1.3cm;size:letter;}}
-        </style></head><body><pre>${(atsResume ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-        <script>window.onload=function(){setTimeout(function(){window.print();},400);}<\/script>
-        </body></html>`;
+  const openPrintWindow = (data: ResumeData) => {
+    const htmlContent = buildPrintHTML(data);
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.open();
     win.document.write(htmlContent);
     win.document.close();
+  };
+
+  const handleDownloadPDF = async () => {
+    // If already parsed as JSON, open print window directly
+    if (parsed) {
+      openPrintWindow(parsed);
+      return;
+    }
+    // Otherwise regenerate to get proper JSON, then open
+    setIsPdfLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/analysis/${analysisId}/resume`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate resume');
+      setAtsResume(data.atsResume);
+      const freshParsed = parseResume(data.atsResume);
+      if (freshParsed) openPrintWindow(freshParsed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setIsPdfLoading(false);
+    }
   };
 
   return (
@@ -453,9 +469,17 @@ export default function ATSResumeClient({
               </button>
               <button
                 onClick={handleDownloadPDF}
-                className="text-xs px-3 py-1.5 bg-[#c8973a]/10 border border-[#c8973a]/20 text-[#c8973a] hover:bg-[#c8973a]/20 rounded transition-colors flex items-center gap-1.5"
+                disabled={isPdfLoading}
+                className="text-xs px-3 py-1.5 bg-[#c8973a]/10 border border-[#c8973a]/20 text-[#c8973a] hover:bg-[#c8973a]/20 rounded transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ⬇ Download PDF
+                {isPdfLoading ? (
+                  <>
+                    <span className="w-3 h-3 border border-[#c8973a]/40 border-t-[#c8973a] rounded-full animate-spin" />
+                    Preparing...
+                  </>
+                ) : (
+                  '⬇ Download PDF'
+                )}
               </button>
               <button
                 onClick={generateResume}
