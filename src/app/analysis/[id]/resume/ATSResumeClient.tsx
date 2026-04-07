@@ -328,8 +328,15 @@ export default function ATSResumeClient({
   };
 
   const handleDownloadPDF = () => {
-    if (!parsed) return;
-    const htmlContent = buildPrintHTML(parsed);
+    const htmlContent = parsed
+      ? buildPrintHTML(parsed)
+      : `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>
+          body{font-family:Georgia,serif;font-size:11pt;line-height:1.4;color:#000;padding:22px 40px;max-width:730px;margin:0 auto;}
+          pre{white-space:pre-wrap;font-family:inherit;}
+          @media print{body{padding:0;}@page{margin:1cm 1.3cm;size:letter;}}
+        </style></head><body><pre>${(atsResume ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+        <script>window.onload=function(){setTimeout(function(){window.print();},400);}<\/script>
+        </body></html>`;
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.open();
@@ -446,9 +453,7 @@ export default function ATSResumeClient({
               </button>
               <button
                 onClick={handleDownloadPDF}
-                disabled={!parsed}
-                title={!parsed ? 'Regenerate to get PDF-ready format' : 'Download as PDF'}
-                className="text-xs px-3 py-1.5 bg-[#c8973a]/10 border border-[#c8973a]/20 text-[#c8973a] hover:bg-[#c8973a]/20 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="text-xs px-3 py-1.5 bg-[#c8973a]/10 border border-[#c8973a]/20 text-[#c8973a] hover:bg-[#c8973a]/20 rounded transition-colors flex items-center gap-1.5"
               >
                 ⬇ Download PDF
               </button>
