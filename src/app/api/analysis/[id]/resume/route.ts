@@ -29,9 +29,14 @@ export async function POST(
       return NextResponse.json({ error: 'Analysis not found' }, { status: 404 });
     }
 
-    // Return cached if already generated
+    // Return cached only if it's valid JSON (not plain text from a bad generation)
     if (analysis.atsResume) {
-      return NextResponse.json({ atsResume: analysis.atsResume });
+      try {
+        JSON.parse(analysis.atsResume);
+        return NextResponse.json({ atsResume: analysis.atsResume });
+      } catch {
+        // Cached value is plain text — fall through to regenerate
+      }
     }
 
     const atsResume = await generateATSResume(

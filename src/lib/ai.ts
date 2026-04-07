@@ -157,7 +157,7 @@ export async function generateATSResume(
     messages: [
       {
         role: 'system',
-        content: `You are an expert resume writer. You MUST return ONLY a valid JSON object — no prose, no markdown fences, no explanation.`,
+        content: `You are a JSON API. You output ONLY raw JSON. No markdown. No backticks. No explanation. No prose. Your entire response must start with { and end with }. If you output anything other than valid JSON, you have failed.`,
       },
       {
         role: 'user',
@@ -237,8 +237,14 @@ Rules:
   });
 
   let raw = (completion.choices[0]?.message?.content ?? '').trim();
+  // Strip markdown fences
   if (raw.startsWith('```')) {
-    raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  }
+  // Try to extract JSON object if surrounded by prose
+  if (!raw.startsWith('{')) {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) raw = match[0];
   }
   // Validate it parses — if not, throw so the API route catches it
   JSON.parse(raw);
