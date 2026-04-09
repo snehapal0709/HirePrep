@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { SessionProvider } from './providers';
+import BackgroundAnimation from '@/components/BackgroundAnimation';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -39,7 +40,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <body className="bg-[#0a0a0a] text-white antialiased">
-        <SessionProvider>{children}</SessionProvider>
+        <BackgroundAnimation />
+        <div className="relative z-10">
+          <SessionProvider>{children}</SessionProvider>
+        </div>
       </body>
     </html>
   );
